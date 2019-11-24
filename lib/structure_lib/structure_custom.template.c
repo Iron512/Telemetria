@@ -4,7 +4,7 @@
 
 data_t* data_setup() {
 	data_t* data = (data_t*) malloc(sizeof(data_t));
-	
+	data->marker = 0;
 	// {{GENERATE_STRUCTURE_INITIALIZER_CODE}}
 	return data;
 }
