@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "mongo_custom.h"
 
 dbhandler_t* mongo_setup(int port, char* host, char* database, char* collection) {
@@ -49,8 +50,19 @@ dbhandler_t* mongo_setup(int port, char* host, char* database, char* collection)
 
 	mongoc_client_set_appname (toRtn->client, "E-agle racing team - Telemetria");
 
+	char date[100];
+	time_t now = time(NULL);
+	struct tm *t = localtime(&now);
+	strftime(date,99,"%y%m_%H%M",t);
+	//printf("%s\n", date);
+
+	int size = strlen(collection) + strlen(date);
+	char* collection_name = (char*) malloc(sizeof(char)*size);
+	strcpy(collection_name, collection);
+	strcat(collection_name, date);
+
 	toRtn->database = mongoc_client_get_database(toRtn->client, database);
-  	toRtn->collection = mongoc_client_get_collection(toRtn->client, database, collection);
+  	toRtn->collection = mongoc_client_get_collection(toRtn->client, database, collection_name);
 	
 	if (verbose) printf("Mongo started up with success.\n\n");
 

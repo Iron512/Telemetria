@@ -7,5 +7,7 @@
   "mongo_host": "localhost",
   "mongo_port": 27017,
   "mongo_db": "testlab",
-  "mongo_collection": "testlab_21_11_2019"
+  "mongo_collection": "testlab_euber"
+
+  "sending_time": 500
 }

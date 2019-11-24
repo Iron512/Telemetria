@@ -37,27 +37,40 @@ int data_gather(data_t* data, int timing, int socket) {
 
 	    int firstByte = ((data1 >> 24) & 255);
 
-	    switch(id) {        
+	    switch(id) {
+
+	    	case(0x181):
+	    		data->inverterLeft[data->inverterLeft_count].timestamp = message_timestamp;
+	    		data->inverterLeft[data->inverterLeft_count].value.data1 = data1;
+	    		data->inverterLeft[data->inverterLeft_count++].value.data2 = data2;
+	    	break;
+
+	    	case(0x182):
+	    		data->inverterRight[data->inverterRight_count].timestamp = message_timestamp;
+	    		data->inverterRight[data->inverterRight_count].value.data1 = data1;
+	    		data->inverterRight[data->inverterRight_count++].value.data2 = data2;
+	    	break;
+
 			case(0xAA): //BMS HV
 				switch(firstByte) {
-					case 0x01: //temperature
+					case 0x01: //voltage
 						data->bms_hv.voltage[data->bms_hv.voltage_count].timestamp = message_timestamp;
-						data->bms_hv.voltage[data->bms_hv.voltage_count].value.total = (data1 & 0x00FFFFFF)/10000;
-						data->bms_hv.voltage[data->bms_hv.voltage_count].value.max = ((data2 >> 16) & 0x0000FFFF)/10000;
-						data->bms_hv.voltage[data->bms_hv.voltage_count++].value.min = (data2 & 0x0000FFFF)/10000;
+						data->bms_hv.voltage[data->bms_hv.voltage_count].value.total = (double) (data1 & 0x00FFFFFF)/10000;
+						data->bms_hv.voltage[data->bms_hv.voltage_count].value.max = (double) ((data2 >> 16) & 0x0000FFFF)/10000;
+						data->bms_hv.voltage[data->bms_hv.voltage_count++].value.min = (double) (data2 & 0x0000FFFF)/10000;
 					break;
 
-					case 0x0A: //voltage
+					case 0x0A: //temperature
 						data->bms_hv.temperature[data->bms_hv.temperature_count].timestamp = message_timestamp;
 						data->bms_hv.temperature[data->bms_hv.temperature_count].value.average = ((data1 >> 8) & 0x0000FFFF)/100;
-						data->bms_hv.temperature[data->bms_hv.temperature_count].value.max = ((data1 & 0x000000FF)*256+((data2 >> 24) & 0x000000FF))/100;
-						data->bms_hv.temperature[data->bms_hv.temperature_count++].value.min = ((data2 >> 16) & 0x0000FFFF)/100;
+						data->bms_hv.temperature[data->bms_hv.temperature_count].value.max = (((data1 & 0x000000FF)*256+((data2 >> 24) & 0x000000FF)))/100;
+						data->bms_hv.temperature[data->bms_hv.temperature_count++].value.min = ((data2 >> 8) & 0x0000FFFF)/100;
 					break;
 
 					case 0x05: //current
 						data->bms_hv.current[data->bms_hv.current_count].timestamp = message_timestamp;
-						data->bms_hv.current[data->bms_hv.current_count].value.current = ((data1 >> 8) & 0x0000FFFF)/10;
-						data->bms_hv.current[data->bms_hv.current_count++].value.pow = ((data1 & 0x000000FF)*256+((data2 >> 24) & 0x000000FF));
+						data->bms_hv.current[data->bms_hv.current_count].value.current = (double) ((data1 >> 8) & 0x0000FFFF)/10;
+						data->bms_hv.current[data->bms_hv.current_count++].value.pow = (double) ((data1 & 0x000000FF)*256+((data2 >> 24) & 0x000000FF));
 					break;
 
 					case 0x08: //errors
@@ -66,7 +79,7 @@ int data_gather(data_t* data, int timing, int socket) {
 						data->bms_hv.errors[data->bms_hv.errors_count++].value.fault_index = ((data1 >> 8) & 0x000000FF)/10;
 					break;
 
-					case 0x09: //errors
+					case 0x09: //warning
 						data->bms_hv.warnings[data->bms_hv.warnings_count].timestamp = message_timestamp;
 						data->bms_hv.warnings[data->bms_hv.warnings_count].value.fault_id = ((data1 >> 16) & 0x000000FF);
 						data->bms_hv.warnings[data->bms_hv.warnings_count++].value.fault_index = ((data1 >> 8) & 0x000000FF)/10;
@@ -77,29 +90,53 @@ int data_gather(data_t* data, int timing, int socket) {
 			case(0xB0): //Pedals
 				if (firstByte == 0x01) {
 					data->throttle[data->throttle_count].timestamp = message_timestamp;
-					data->throttle[data->throttle_count++].value = ((data1 >> 16) & 255);
+					data->throttle[data->throttle_count].value = ((data1 >> 16) & 255);
+					
+					data->throttle_count++;
 				} else if (firstByte = 0x02) {
 					data->brake[data->brake_count].timestamp = message_timestamp;
-					data->brake[data->brake_count++].value = ((data1 >> 16) & 255);
+					data->brake[data->brake_count].value = ((data1 >> 16) & 255);
+					
+					data->brake_count++;
 				}
 			break;
 
 			case (0xC0): //IMU and SWE
 				switch (firstByte) {
-					case 0x00: //imu gyro
+					case 0x01: //imu gyro
 						data->imu_gyro[data->imu_gyro_count].timestamp = message_timestamp;
-						data->imu_gyro[data->imu_gyro_count].value.x = (data1 >> 8) & 0x0000FFFF;
-						data->imu_gyro[data->imu_gyro_count].value.y = ((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
-						data->imu_gyro[data->imu_gyro_count].value.z = (data2 >> 8) & 0x0000FFFF;
-						data->imu_gyro[data->imu_gyro_count++].value.scale = ((data2 >> 24) & 0x000000FF) / 10;
+						data->imu_gyro[data->imu_gyro_count].value.x = (double)((data1 >> 8) & 0x0000FFFF);
+						data->imu_gyro[data->imu_gyro_count].value.y = (double)((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
+						data->imu_gyro[data->imu_gyro_count].value.z = (double)((data2 >> 8) & 0x0000FFFF);
+						data->imu_gyro[data->imu_gyro_count].value.scale = ((data2) & 0x000000FF) * 10;
+
+						data->imu_gyro[data->imu_gyro_count].value.x /= 10.0;
+						data->imu_gyro[data->imu_gyro_count].value.y /= 10.0;
+						data->imu_gyro[data->imu_gyro_count].value.z /= 10.0;
+
+						data->imu_gyro[data->imu_gyro_count].value.x -= data->imu_gyro[data->imu_gyro_count].value.scale;
+						data->imu_gyro[data->imu_gyro_count].value.y -= data->imu_gyro[data->imu_gyro_count].value.scale;
+						data->imu_gyro[data->imu_gyro_count].value.z -= data->imu_gyro[data->imu_gyro_count].value.scale;
+					
+						data->imu_gyro_count++;
 					break;
 
-					case 0x05: //imu accel
+					case 0x00: //imu accel
 						data->imu_accel[data->imu_accel_count].timestamp = message_timestamp;
-						data->imu_accel[data->imu_accel_count].value.x = (data1 >> 8) & 0x0000FFFF;
-						data->imu_accel[data->imu_accel_count].value.y = ((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
-						data->imu_accel[data->imu_accel_count].value.z = (data2 >> 8) & 0x0000FFFF;
-						data->imu_accel[data->imu_accel_count++].value.scale = (data2 >> 24) & 0x000000FF;
+						data->imu_accel[data->imu_accel_count].value.x = (double)((data1 >> 8) & 0x0000FFFF);
+						data->imu_accel[data->imu_accel_count].value.y = (double)((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
+						data->imu_accel[data->imu_accel_count].value.z = (double)((data2 >> 8) & 0x0000FFFF);
+						data->imu_accel[data->imu_accel_count].value.scale = (data2) & 0x000000FF;
+
+						data->imu_accel[data->imu_accel_count].value.x /= 100.0;
+						data->imu_accel[data->imu_accel_count].value.y /= 100.0;
+						data->imu_accel[data->imu_accel_count].value.z /= 100.0;
+
+						data->imu_accel[data->imu_accel_count].value.x -= data->imu_accel[data->imu_accel_count].value.scale;
+						data->imu_accel[data->imu_accel_count].value.y -= data->imu_accel[data->imu_accel_count].value.scale;
+						data->imu_accel[data->imu_accel_count].value.z -= data->imu_accel[data->imu_accel_count].value.scale;
+						
+						data->imu_accel_count++;
 					break;
 				
 					case 0x02: //steering wheel enconder
@@ -111,25 +148,26 @@ int data_gather(data_t* data, int timing, int socket) {
 
 			case (0xD0): //GPS and FWE
 				switch (firstByte) {
-					case 0x01: //lat and speed
+					case 0x10: //lat and speed
 						data->gps.latspd[data->gps.latspd_count].timestamp = message_timestamp;
-						data->gps.latspd[data->gps.latspd_count].value.latitude_ih  = (data1 >> 8) & 0x0000FFFF;
-						data->gps.latspd[data->gps.latspd_count].value.latitude_il = ((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
+						data->gps.latspd[data->gps.latspd_count].value.latitude_m  = (((data1 >> 8) & 0x0000FFFF)<<16) + ((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
 						data->gps.latspd[data->gps.latspd_count].value.latitude_o  = (data2 >> 16) & 0x000000FF;
 						data->gps.latspd[data->gps.latspd_count++].value.speed = data2 & 0x0000FFFF;
 					break;
 
-					case 0x02: //lon and altitude
+					case 0x11: //lon and altitude
 						data->gps.lonalt[data->gps.lonalt_count].timestamp = message_timestamp;
-						data->gps.lonalt[data->gps.lonalt_count].value.longitude_ih  = (data1 >> 8) & 0x0000FFFF;
-						data->gps.lonalt[data->gps.lonalt_count].value.longitude_il = ((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
+						data->gps.lonalt[data->gps.lonalt_count].value.longitude_m  = (((data1 >> 8) & 0x0000FFFF)<<16) + ((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
 						data->gps.lonalt[data->gps.lonalt_count].value.longitude_o  = (data2 >> 16) & 0x000000FF;
 						data->gps.lonalt[data->gps.lonalt_count++].value.altitude = data2 & 0x0000FFFF;
 					break;
 
 					case 0x06: //front wheels
 						data->front_wheels_encoder[data->front_wheels_encoder_count].timestamp = message_timestamp;
-						data->front_wheels_encoder[data->front_wheels_encoder_count++].value = ((data1 >> 16) & 255) *256 + ((data1 >> 8) & 255);
+						data->front_wheels_encoder[data->front_wheels_encoder_count].value.speed = ((data1 >> 8) & 0x0000FFFF) * ((data1 & 0x000000FF) == 0? 1: -1);
+						data->front_wheels_encoder[data->front_wheels_encoder_count].value.speedms = (((data2 >> 16) & 0x0000FFFF) * ((data1 & 0x000000FF) == 0? 1: -1))/100;
+					
+						data->front_wheels_encoder_count++;
 					break;
 
 					case 0x08: //distance
@@ -145,8 +183,8 @@ int data_gather(data_t* data, int timing, int socket) {
 			case (0xFF): //BMS LV
 				//OK
 				data->bms_lv.values[data->bms_lv.values_count].timestamp = message_timestamp;
-				data->bms_lv.values[data->bms_lv.values_count].value.voltage = ((data1>>24) & 255)/10.0;
-				data->bms_lv.values[data->bms_lv.values_count++].value.temperature = ((data1>>8) & 255)/5.0;
+				data->bms_lv.values[data->bms_lv.values_count].value.voltage = (double)((data1>>24) & 255)/10.0;
+				data->bms_lv.values[data->bms_lv.values_count++].value.temperature = (double)((data1>>8) & 255)/5.0;
 			break;
 
 			case (0xAB): //Marker
