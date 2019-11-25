@@ -2,9 +2,11 @@
 #include <string.h>
 #include "structure_custom.h"
 
+int msgid = 0;
+
 data_t* data_setup() {
 	data_t* data = (data_t*) malloc(sizeof(data_t));
-	
+	data->marker = 0;
 	data->inverterRight = (inverterRight_data*)malloc(sizeof(inverterRight_data) * 500);
 	data->inverterRight_count = 0;
 	data->inverterLeft = (inverterLeft_data*)malloc(sizeof(inverterLeft_data) * 500);
@@ -46,6 +48,7 @@ data_t* data_setup() {
 }
 
 int data_elaborate(data_t* data, bson_t** sending) {
+
 	*sending = bson_new();
 	bson_t *children = (bson_t*)malloc(sizeof(bson_t) * 4);
 	BSON_APPEND_INT32(*sending, "id", data->id);
@@ -197,7 +200,7 @@ int data_elaborate(data_t* data, bson_t** sending) {
 		BSON_APPEND_INT64(&children[2], "timestamp", data->gps.latspd[i].timestamp);
 		BSON_APPEND_DOCUMENT_BEGIN(&children[2], "value", &children[3]);
 		BSON_APPEND_DOUBLE(&children[3], "latitude_m", data->gps.latspd[i].value.latitude_m);
-		BSON_APPEND_DOUBLE(&children[3], "latitude_o", data->gps.latspd[i].value.latitude_o);
+		BSON_APPEND_INT32(&children[3], "latitude_o", data->gps.latspd[i].value.latitude_o);
 		BSON_APPEND_DOUBLE(&children[3], "speed", data->gps.latspd[i].value.speed);
 		bson_append_document_end(&children[2], &children[3]);
 		bson_destroy(&children[3]);
@@ -213,7 +216,7 @@ int data_elaborate(data_t* data, bson_t** sending) {
 		BSON_APPEND_INT64(&children[2], "timestamp", data->gps.lonalt[i].timestamp);
 		BSON_APPEND_DOCUMENT_BEGIN(&children[2], "value", &children[3]);
 		BSON_APPEND_DOUBLE(&children[3], "longitude_m", data->gps.lonalt[i].value.longitude_m);
-		BSON_APPEND_DOUBLE(&children[3], "longitude_o", data->gps.lonalt[i].value.longitude_o);
+		BSON_APPEND_INT32(&children[3], "longitude_o", data->gps.lonalt[i].value.longitude_o);
 		BSON_APPEND_DOUBLE(&children[3], "altitude", data->gps.lonalt[i].value.altitude);
 		bson_append_document_end(&children[2], &children[3]);
 		bson_destroy(&children[3]);
@@ -353,11 +356,17 @@ int data_quit(data_t* data) {
 }
 
 int data_gather(data_t* data, int timing, int socket) {
+	msgid++;
+
+	data->id=msgid;
+
 	double msec = 0, end = 0;
 	struct timespec tstart={0,0}, tend={0,0};
 	clock_gettime(CLOCK_MONOTONIC, &tstart);
 	end = ((double)tstart.tv_sec*1000 + 1.0e-6*tstart.tv_nsec);
 	
+	data->timestamp = end;
+
 	int id, data1, data2;
 
 	do {
@@ -483,14 +492,14 @@ int data_gather(data_t* data, int timing, int socket) {
 				switch (firstByte) {
 					case 0x10: //lat and speed
 						data->gps.latspd[data->gps.latspd_count].timestamp = message_timestamp;
-						data->gps.latspd[data->gps.latspd_count].value.latitude_m  = (((data1 >> 8) & 0x0000FFFF)<<16) + ((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
+						data->gps.latspd[data->gps.latspd_count].value.latitude_m  = (double)(((((data1 >> 8) & 0x0000FFFF)<<8)*10000) + (((data1 & 0x000000FF) * 0xFF)<<8) + ((data2 >> 24) & 0x000000FF))/10000.0;
 						data->gps.latspd[data->gps.latspd_count].value.latitude_o  = (data2 >> 16) & 0x000000FF;
 						data->gps.latspd[data->gps.latspd_count++].value.speed = data2 & 0x0000FFFF;
 					break;
 
 					case 0x11: //lon and altitude
 						data->gps.lonalt[data->gps.lonalt_count].timestamp = message_timestamp;
-						data->gps.lonalt[data->gps.lonalt_count].value.longitude_m  = (((data1 >> 8) & 0x0000FFFF)<<16) + ((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
+						data->gps.lonalt[data->gps.lonalt_count].value.longitude_m  = (double)(((((data1 >> 8) & 0x0000FFFF)<<8)*100000) + (((data1 & 0x000000FF) * 0xFF)<<8) + ((data2 >> 24) & 0x000000FF))/100000.0;
 						data->gps.lonalt[data->gps.lonalt_count].value.longitude_o  = (data2 >> 16) & 0x000000FF;
 						data->gps.lonalt[data->gps.lonalt_count++].value.altitude = data2 & 0x0000FFFF;
 					break;

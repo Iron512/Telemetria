@@ -2,6 +2,8 @@
 #include <string.h>
 #include "structure_custom.h"
 
+int msgid = 0;
+
 data_t* data_setup() {
 	data_t* data = (data_t*) malloc(sizeof(data_t));
 	data->marker = 0;
@@ -10,6 +12,7 @@ data_t* data_setup() {
 }
 
 int data_elaborate(data_t* data, bson_t** sending) {
+
 	//{{GENERATE_BSON_CODE}}
 	return 0;
 }
@@ -20,11 +23,17 @@ int data_quit(data_t* data) {
 }
 
 int data_gather(data_t* data, int timing, int socket) {
+	msgid++;
+
+	data->id=msgid;
+
 	double msec = 0, end = 0;
 	struct timespec tstart={0,0}, tend={0,0};
 	clock_gettime(CLOCK_MONOTONIC, &tstart);
 	end = ((double)tstart.tv_sec*1000 + 1.0e-6*tstart.tv_nsec);
 	
+	data->timestamp = end;
+
 	int id, data1, data2;
 
 	do {
@@ -150,14 +159,14 @@ int data_gather(data_t* data, int timing, int socket) {
 				switch (firstByte) {
 					case 0x10: //lat and speed
 						data->gps.latspd[data->gps.latspd_count].timestamp = message_timestamp;
-						data->gps.latspd[data->gps.latspd_count].value.latitude_m  = (((data1 >> 8) & 0x0000FFFF)<<16) + ((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
+						data->gps.latspd[data->gps.latspd_count].value.latitude_m  = (double)(((((data1 >> 8) & 0x0000FFFF)<<8)*10000) + (((data1 & 0x000000FF) * 0xFF)<<8) + ((data2 >> 24) & 0x000000FF))/10000.0;
 						data->gps.latspd[data->gps.latspd_count].value.latitude_o  = (data2 >> 16) & 0x000000FF;
 						data->gps.latspd[data->gps.latspd_count++].value.speed = data2 & 0x0000FFFF;
 					break;
 
 					case 0x11: //lon and altitude
 						data->gps.lonalt[data->gps.lonalt_count].timestamp = message_timestamp;
-						data->gps.lonalt[data->gps.lonalt_count].value.longitude_m  = (((data1 >> 8) & 0x0000FFFF)<<16) + ((data1 & 0x000000FF) * 0xFF) + ((data2 >> 24) & 0x000000FF);
+						data->gps.lonalt[data->gps.lonalt_count].value.longitude_m  = (double)(((((data1 >> 8) & 0x0000FFFF)<<8)*100000) + (((data1 & 0x000000FF) * 0xFF)<<8) + ((data2 >> 24) & 0x000000FF))/100000.0;
 						data->gps.lonalt[data->gps.lonalt_count].value.longitude_o  = (data2 >> 16) & 0x000000FF;
 						data->gps.lonalt[data->gps.lonalt_count++].value.altitude = data2 & 0x0000FFFF;
 					break;

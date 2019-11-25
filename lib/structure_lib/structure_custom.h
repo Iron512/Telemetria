@@ -115,7 +115,7 @@ typedef struct {
 
 typedef struct {
 	double latitude_m;
-	double latitude_o;
+	int latitude_o;
 	double speed;
 } gps_latspd_value_data;
 
@@ -126,7 +126,7 @@ typedef struct {
 
 typedef struct {
 	double longitude_m;
-	double longitude_o;
+	int longitude_o;
 	double altitude;
 } gps_lonalt_value_data;
 

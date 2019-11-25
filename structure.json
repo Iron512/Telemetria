@@ -91,7 +91,7 @@
                 "timestamp": "long",
                 "value": {
                     "latitude_m": "double",
-                    "latitude_o": "double",
+                    "latitude_o": "int",
                     "speed": "double"
                 }
             }, 500
@@ -101,7 +101,7 @@
                 "timestamp": "long",
                 "value": {
                     "longitude_m": "double",
-                    "longitude_o": "double",
+                    "longitude_o": "int",
                     "altitude": "double"
                 }
             }, 500
