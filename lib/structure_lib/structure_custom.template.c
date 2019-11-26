@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/timeb.h>
 #include "structure_custom.h"
 
 int msgid = 0;
@@ -22,6 +23,16 @@ int data_quit(data_t* data) {
 	return 0;
 }
 
+long long int get_current_timestamp() {
+	struct timeb timer_msec;
+	if(!ftime(&timer_msec)) {
+		return ((long long int) timer_msec.time) * 1000ll + ((long long int) timer_msec.millitm);
+	}
+	else {
+		return -1;
+	}
+}
+
 int data_gather(data_t* data, int timing, int socket) {
 	msgid++;
 
@@ -32,7 +43,7 @@ int data_gather(data_t* data, int timing, int socket) {
 	clock_gettime(CLOCK_MONOTONIC, &tstart);
 	end = ((double)tstart.tv_sec*1000 + 1.0e-6*tstart.tv_nsec);
 	
-	data->timestamp = end;
+	data->timestamp = get_current_timestamp();
 
 	int id, data1, data2;
 
@@ -42,7 +53,7 @@ int data_gather(data_t* data, int timing, int socket) {
 	    
 	    struct timespec tmessage={0,0};
 	    clock_gettime(CLOCK_MONOTONIC, &tmessage);
-		size_t message_timestamp = ((double)tmessage.tv_sec*1000 + 1.0e-6*tmessage.tv_nsec);
+		long long int message_timestamp = get_current_timestamp();
 
 	    int firstByte = ((data1 >> 24) & 255);
 
