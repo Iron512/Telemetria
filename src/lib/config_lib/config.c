@@ -48,7 +48,9 @@ config_t* config_setup(const char* cfgpath) {
 	if (verbose) printf("Parsed #%d entries.\n",result-1);
 
 	toRtn = (config_t*) malloc(sizeof(config_t));
-	for (int i = 1; i <result; i+=2) {
+	toRtn->pilots_size = 0;
+	toRtn->pilots = NULL;
+	for (int i = 1; i < result; i+=2) {
 		jsmntok_t key = tokens[i];
 		jsmntok_t value = tokens[i+1];
 		
@@ -87,28 +89,38 @@ config_t* config_setup(const char* cfgpath) {
 
 	    else if (strcmp(keyString,"sending_time") == 0) {
 	      toRtn->sending_time = atoi(valueString);	
-		} else if (strcmp(keyString,"sending_throttle") == 0) {
-	      toRtn->sending_throttle = atoi(valueString);  
-	    } else if (strcmp(keyString,"sending_brake") == 0) {
-	      toRtn->sending_brake = atoi(valueString);  
-	    } else if (strcmp(keyString,"sending_steering_wheel_encoder") == 0) {
-	      toRtn->sending_steering_wheel_encoder = atoi(valueString);  
-	    } else if (strcmp(keyString,"sending_front_wheels_encoder") == 0) {
-	      toRtn->sending_front_wheels_encoder = atoi(valueString);  
-	    } else if (strcmp(keyString,"sending_imu_gyro") == 0) {
-	      toRtn->sending_imu_gyro = atoi(valueString);	
-		} else if (strcmp(keyString,"sending_imu_axel") == 0) {
-	      toRtn->sending_imu_gyro = atoi(valueString);  
-	    } else if (strcmp(keyString,"sending_gps_data") == 0) {
-	      toRtn->sending_gps_data = atoi(valueString);  
-	    } else if (strcmp(keyString,"sending_bms_hv_data") == 0) {
-	      toRtn->sending_bms_hv_data = atoi(valueString);  
-	    } else if (strcmp(keyString,"sending_bms_lv_data") == 0) {
-	      toRtn->sending_bms_lv_data = atoi(valueString);  
-	    }
+		}
+		
+		
+		else if (strcmp(keyString, "pilots") == 0) {
+			for (int j = 0; j < value.size; j++) {
+				jsmntok_t child = tokens[i + j + 2];
+				unsigned int length = child.end - child.start;
+				char childString[length + 1];    
+				memcpy(childString, &json[child.start], length);
+				childString[length] = '\0';
+
+				toRtn->pilots_size++;
+				if (toRtn->pilots == NULL) {
+					toRtn->pilots = (char**)malloc(sizeof(char*) * toRtn->pilots_size);
+				}
+				else {
+					toRtn->pilots = (char**)realloc(toRtn->pilots, sizeof(char*) * toRtn->pilots_size);
+				}
+				toRtn->pilots[toRtn->pilots_size - 1] = (char*) malloc(sizeof(char)*length);
+				strcpy(toRtn->pilots[toRtn->pilots_size - 1], childString);
+			}
+			i += value.size;
+		} 
 	}
 	if (verbose) printf("%s has generated a correct set of configurations.\n\n", cfgpath);
-	return toRtn;}
+
+	for (int i = 0; i < toRtn->pilots_size; i++) {
+		printf("i is %d, pilot is %s\n", i, toRtn->pilots[i]);
+	}
+
+	return toRtn;
+}
 
 int config_quit(config_t* cfg) {
 	free(cfg->broker_host);
